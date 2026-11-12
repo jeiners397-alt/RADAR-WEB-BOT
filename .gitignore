@@ -1,0 +1,28 @@
+# secrets / data — NEVER commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+data/
+*.db
+*.sqlite*
+*.sql
+*.dump
+backups/
+*.log
+logs/
+# build
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+playwright-report/
+test-results/
