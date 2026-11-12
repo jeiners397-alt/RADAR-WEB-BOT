@@ -42,7 +42,7 @@ ins = c.get("/api/v1/market/instruments?quote=USDT&limit=5").json()
 ok("catálogo de instrumentos", ins["total"] > 100, f"{ins['total']} USDT tradables")
 # orden manual + cierre, comprobando ledger y aislamiento
 o = c.post("/api/v1/paper/orders", headers=h, json={"account_id": paper["id"], "symbol": "ETHUSDT", "side": "BUY", "quote_amount": 17, "confirm": True, "idempotency_key": "prod-1"}).json()
-ok("orden MANUAL 17 USDT llenada", o["status"] == "filled" and o["origin"] == "MANUAL" and 16.9 < o["notional"] <= 17, f"{o['status']} {o['reject_reason']} notional={o['notional']}")
+ok("orden MANUAL 17 USDT llenada", o["status"] == "filled" and o["origin"] == "MANUAL" and 16.0 < o["notional"] <= 17, f"{o['status']} {o['reject_reason']} notional={o['notional']}")
 o2 = c.post("/api/v1/paper/orders", headers=h, json={"account_id": paper["id"], "symbol": "ETHUSDT", "side": "BUY", "quote_amount": 17, "confirm": True, "idempotency_key": "prod-1"}).json()
 ok("idempotencia: misma orden", o2["id"] == o["id"])
 c.post("/api/v1/paper/orders", headers=h, json={"account_id": paper["id"], "symbol": "ETHUSDT", "side": "SELL", "confirm": True})

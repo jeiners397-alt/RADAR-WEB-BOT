@@ -1,5 +1,7 @@
 # Estado de implementación (11–12 nov 2026)
 
+> **Desplegado en Azure el 12-nov-2026** (VPS `bot-trading-vps`, Ubuntu 24.04). Acceso solo por túnel SSH. Ver sección «Despliegue».
+
 Leyenda: **IMPLEMENTADO** = funciona y está probado · **PARCIAL** · **BLOQUEADO** (falta algo externo) · **NO DISPONIBLE** (no construido).
 
 ## Verificación realizada
@@ -9,7 +11,11 @@ Leyenda: **IMPLEMENTADO** = funciona y está probado · **PARCIAL** · **BLOQUEA
 | `tsc --noEmit` + `vite build` frontend | OK (bundle 165 kB gzip) |
 | E2E Playwright contra backend real + Binance público real | **27/27**: login → dashboard → selector → 13 rutas → orden MANUAL 17 USDT → historial → cuenta Exness "no conectada" → retorno a Binance Paper → sin secretos en storage → móvil sin scroll horizontal |
 | Binance público real desde este PC | OK (ticker, velas, 3 742 instrumentos, filtros reales BTCUSDT `minNotional=5`) |
-| `docker compose up -d --build` | **NO EJECUTADO**: este PC no tiene Docker. Se probará en el VPS. |
+| `docker compose up -d --build` en el VPS | **OK**: db, api, worker-research y worker-market *healthy* |
+| E2E Playwright contra el VPS (vía túnel) | **27/27** |
+| `scripts/prod_checks.py` contra el VPS (integración + seguridad) | **24/24** (tras corregir un límite mal puesto en la propia prueba) |
+| Reinicio del VPS | **OK**: los 4 contenedores vuelven solos (`restart: unless-stopped` + `capital-radar.service`), datos intactos |
+| Respaldo `backup.sh` + cron diario 03:17 UTC | **OK** (cifrado AES-256, verificado por descifrado) |
 | CI de GitHub Actions | Definido; **no ejecutado** (no se ha subido nada: falta `gh auth login`). |
 
 ## Funcionalidades
@@ -38,11 +44,19 @@ Leyenda: **IMPLEMENTADO** = funciona y está probado · **PARCIAL** · **BLOQUEA
 | Modo DEMO visual con cifras de la captura | NO DISPONIBLE | Decisión: evitar cifras ficticias |
 | 2FA, RBAC multiusuario, notificaciones externas | NO DISPONIBLE | |
 | Alembic (migraciones) | NO DISPONIBLE | `create_all` en v1 (deuda) |
-| Despliegue en Azure | **BLOQUEADO** | Falta el usuario SSH de la VM; ver `OPEN_QUESTIONS.md` |
-| Limpieza de bots antiguos del VPS | **NO REALIZADA** | Depende del acceso SSH |
+| Despliegue en Azure | **IMPLEMENTADO** | Solo por túnel SSH (sin dominio) |
+| Limpieza de bots antiguos del VPS | **IMPLEMENTADO** | `binance_bot_A13` y `binance_bot_v11` (ambos paper) respaldados cifrados y verificados, luego retirados |
 
 ## Deudas / riesgos conocidos
 - `trade_samples` solo registra entrada y salida (no muestreo intermedio).
 - Cobertura de tests de frontend: solo E2E (sin Vitest unitario).
 - Sin protección CSRF/rate-limit fuera de login; sin 2FA: el panel debe quedar tras túnel SSH/HTTPS.
 - El rate-limit de login es en memoria (se reinicia con el proceso).
+
+## Despliegue (12-nov-2026)
+- Servicios: `db` (postgres 16), `api` (FastAPI + frontend), `worker-research`, `worker-market`. Memoria total ≈ 200 MB en reposo.
+- Solo escucha `127.0.0.1:8000` (+ SSH 22). UFW activo permitiendo únicamente 22.
+- `.env` en `/opt/capital-radar` con permisos 600 (no versionado); clave Fernet fuera de la BD.
+- Bug encontrado y corregido durante la verificación: la UI de paper reutilizaba la clave de idempotencia entre órdenes distintas cuando la lista no se había refrescado (la venta devolvía la compra previa). Ahora hay una clave por envío.
+- Bug de healthcheck: los workers heredaban el de la API (aparecían *unhealthy*); ahora usan heartbeat.
+- Pendiente: HTTPS con dominio, copia externa de respaldos, Azure Key Vault, `qopt.service` huérfano (deshabilitado) que se dejó sin tocar.
