@@ -1,0 +1,60 @@
+# CAPITAL RADAR PRO — pensado para 2 vCPU / 4 GiB. Los secretos viven en ./.env (NO versionado, chmod 600).
+name: capital-radar
+
+x-app: &app
+  build: { context: ., dockerfile: infra/Dockerfile }
+  image: capital-radar-app:local
+  env_file: .env
+  environment:
+    DATABASE_URL: postgresql+psycopg2://radar:${POSTGRES_PASSWORD}@db:5432/radar
+    DATA_DIR: /data
+  depends_on: { db: { condition: service_healthy } }
+  restart: unless-stopped
+  volumes: [ "appdata:/data" ]
+  logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: radar
+      POSTGRES_DB: radar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=40", "-c", "work_mem=4MB"]
+    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U radar -d radar"], interval: 10s, timeout: 5s, retries: 10 }
+    mem_limit: 512m
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+  api:
+    <<: *app
+    # Solo escucha en loopback: acceso por túnel SSH (o por Caddy cuando haya dominio). Nunca HTTP plano público.
+    ports: [ "127.0.0.1:8000:8000" ]
+    mem_limit: 768m
+    healthcheck: { test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/v1/ready',timeout=3)"], interval: 30s, timeout: 5s, retries: 3, start_period: 20s }
+
+  worker-research:
+    <<: *app
+    command: ["python", "-m", "app.workers", "research"]
+    mem_limit: 512m
+    cpus: 0.8
+
+  worker-market:
+    <<: *app
+    command: ["python", "-m", "app.workers", "market"]
+    mem_limit: 384m
+    cpus: 0.5
+
+  # Proxy HTTPS (Let's Encrypt) — solo se activa con `--profile domain` cuando exista DOMAIN y DNS apuntando al VPS.
+  caddy:
+    image: caddy:2-alpine
+    profiles: [ "domain" ]
+    restart: unless-stopped
+    ports: [ "80:80", "443:443" ]
+    environment: { DOMAIN: "${DOMAIN:-}" }
+    volumes: [ "./infra/Caddyfile:/etc/caddy/Caddyfile:ro", "caddydata:/data" ]
+    depends_on: [ api ]
+    mem_limit: 128m
+
+volumes: { pgdata: {}, appdata: {}, caddydata: {} }

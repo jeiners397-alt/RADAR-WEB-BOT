@@ -1,0 +1,35 @@
+name: CI
+on:
+  push: { branches: [ main, "feat/**" ] }
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r backend/requirements-dev.txt
+      - run: cd backend && python -m pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd frontend && npm ci --no-audit --no-fund
+      - run: cd frontend && npx tsc --noEmit
+      - run: cd frontend && npx vite build
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Bloquear archivos sensibles y patrones de secretos
+        run: |
+          if git ls-files | grep -Ei '\.(pem|key|p12|db|sqlite|dump)$|(^|/)\.env$'; then echo "Archivo sensible versionado"; exit 1; fi
+          if git grep -nEi 'BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}' -- . ':!.github'; then echo "Posible secreto"; exit 1; fi
+          echo "Sin secretos detectados"

@@ -21,7 +21,13 @@ class BinancePublic(ProviderAdapter):
     def __init__(self, client: httpx.Client | None = None):
         s = get_settings()
         self.spot_url, self.fut_url = s.binance_spot_url, s.binance_futures_url
-        self.client = client or httpx.Client(timeout=s.http_timeout, headers={"User-Agent": "capital-radar-pro/1.0"})
+        verify = True
+        if s.use_system_trust:  # útil en Windows/redes corporativas con inspección TLS
+            import ssl
+            import truststore
+            verify = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        self.client = client or httpx.Client(timeout=s.http_timeout, verify=verify,
+                                             headers={"User-Agent": "capital-radar-pro/1.0"})
         self.bucket = TokenBucket(rate_per_sec=10, capacity=20)  # ~600 req/min, bajo el límite de peso
         self.breaker = CircuitBreaker(5, 30)
         self.cache = TTLCache()

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     binance_spot_url: str = "https://data-api.binance.vision"
     binance_futures_url: str = "https://fapi.binance.com"
     http_timeout: float = 10.0
+    use_system_trust: bool = False  # USE_SYSTEM_TRUST=true en Windows con inspección TLS
     cookie_secure: bool = False  # true cuando se sirva por HTTPS con dominio
     session_ttl_hours: int = 12
     real_trading_enabled: bool = False
