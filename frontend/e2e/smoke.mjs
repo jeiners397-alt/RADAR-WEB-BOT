@@ -13,12 +13,14 @@ const ok = (name, cond, extra = '') => { results.push({ name, pass: !!cond }); c
 const browser = await chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: 1648, height: 928 }, locale: 'es-PE' })
 const page = await ctx.newPage()
+page.setDefaultTimeout(Number(process.env.PW_TIMEOUT ?? 30000))
+page.setDefaultNavigationTimeout(Number(process.env.PW_TIMEOUT ?? 30000))
 const errors = []
 page.on('pageerror', e => errors.push(String(e)))
 page.on('console', m => { if (m.type() === 'error' && !/favicon|WebSocket|401/i.test(m.text())) errors.push(m.text()) })
 
 await page.goto(BASE)
-await page.fill('input[autocomplete=username]', 'admin')
+await page.fill('input[autocomplete=username]', process.env.ADMIN_USER ?? 'admin')
 await page.fill('input[type=password]', 'mala-clave')
 await page.click('button.btn')
 await page.waitForSelector('.err')

@@ -13,7 +13,6 @@ export default function Paper() {
   const [t, setT] = useState({ symbol: 'ETHUSDT', side: 'BUY', type: 'market', mode: 'amount' as 'amount' | 'qty', value: '', limit: '', sl: '', tp: '', confirm: false })
   const tick = usePoll(() => api(`/market/ticker?symbol=${t.symbol}`), [t.symbol], 5000)
   const [busy, setBusy] = useState(false)
-  const key = useMemo(() => crypto.randomUUID().slice(0, 30), [orders.data?.length, t.symbol])
   const est = useMemo(() => {
     const px = tick.data ? (t.side === 'BUY' ? tick.data.ask : tick.data.bid) : null
     const v = Number(t.value)
@@ -24,7 +23,7 @@ export default function Paper() {
   const submit = async () => {
     setBusy(true)
     try {
-      const body: any = { account_id: aid, symbol: t.symbol, side: t.side, type: t.type, confirm: t.confirm, idempotency_key: key }
+      const body: any = { account_id: aid, symbol: t.symbol, side: t.side, type: t.type, confirm: t.confirm, idempotency_key: crypto.randomUUID().slice(0, 30) }  // una clave nueva por cada envío
       if (t.side === 'BUY' || t.value) { if (t.mode === 'amount') body.quote_amount = Number(t.value); else body.quantity = Number(t.value) }
       if (t.type === 'limit') body.limit_price = Number(t.limit)
       if (t.sl) body.stop_loss = Number(t.sl)
