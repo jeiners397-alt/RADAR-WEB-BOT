@@ -37,12 +37,14 @@ services:
   worker-research:
     <<: *app
     command: ["python", "-m", "app.workers", "research"]
+    healthcheck: { test: ["CMD", "python", "-m", "app.workers", "healthcheck", "research-1", "90"], interval: 30s, timeout: 10s, retries: 3, start_period: 40s }
     mem_limit: 512m
     cpus: 0.8
 
   worker-market:
     <<: *app
     command: ["python", "-m", "app.workers", "market"]
+    healthcheck: { test: ["CMD", "python", "-m", "app.workers", "healthcheck", "market-1", "90"], interval: 30s, timeout: 10s, retries: 3, start_period: 40s }
     mem_limit: 384m
     cpus: 0.5
 

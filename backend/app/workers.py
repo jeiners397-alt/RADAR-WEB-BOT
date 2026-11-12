@@ -120,6 +120,15 @@ def main():
             time.sleep(1)
     elif kind == "market":
         market_loop(_stop.is_set)
+    elif kind == "healthcheck":  # python -m app.workers healthcheck <worker_id> [max_age_s]
+        from datetime import timezone
+        from .models import WorkerHeartbeat, utcnow
+        wid = sys.argv[2]
+        age_max = float(sys.argv[3]) if len(sys.argv) > 3 else 90
+        with session_scope() as db:
+            hb = db.get(WorkerHeartbeat, wid)
+            ok = bool(hb) and (utcnow() - (hb.ts if hb.ts.tzinfo else hb.ts.replace(tzinfo=timezone.utc))).total_seconds() < age_max
+        raise SystemExit(0 if ok else 1)
     else:
         raise SystemExit("uso: python -m app.workers research|market")
 
